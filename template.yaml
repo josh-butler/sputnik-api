@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sputnik-api
+
+  SAM Template for sputnik-api
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment stage (eg. prod || dev)
+    Default: dev
+
+Globals:
+  Function:
+    Runtime: python3.7
+    Timeout: 30
+
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+
+  LaunchTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: !Sub ${Environment}-launch-${AWS::StackName}
+      PrimaryKey:
+        Name: id
+        Type: String
+
+  LaunchFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${LaunchFunction}
+      RetentionInDays: 30
+
+  LaunchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref LaunchTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref LaunchTable
+      Events:
+        GetLaunch:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /launch
+            Method: GET
+        # GetLaunchId:
+        #   Type: Api
+        #   Properties:
+        #     RestApiId: !Ref Api
+        #     Path: /id/{id}
+        #     Method: GET
+
+Outputs:
+  SputnikApi:
+    Description: 'API Gateway endpoint URL for current stage for Launch function'
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/$Environment}/id'
+  LaunchFunction:
+    Description: 'Launch Lambda Function ARN'
+    Value: !GetAtt LaunchFunction.Arn
+  LaunchFunctionIamRole:
+    Description: 'Implicit IAM Role created for Launch function'
+    Value: !GetAtt LaunchFunctionRole.Arn
