@@ -18,6 +18,12 @@ and 2 environments/stages
 https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/launch
 ```
 
+## DB Migration Script
+A Python script is provided in the `scripts` that will load inital JSON data into a DynamoDB table.
+
+```bash
+python3 db_loader.py --src seed-data.json --table myDynamoDBTableName
+```
 
 ## Environments
 * ~~`dev` - development environment deployed from code stored in the `dev` branch of the GitHub repo~~
