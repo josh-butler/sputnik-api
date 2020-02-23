@@ -8,10 +8,10 @@ import argparse
 import boto3
 from botocore.exceptions import ClientError
 
-log_level = logging.INFO
-logging.basicConfig(level=log_level)
-logger = logging.getLogger()
-logger.setLevel(log_level)
+LOG_LEVEL = logging.INFO
+logging.basicConfig(level=LOG_LEVEL)
+LOGGER = logging.getLogger()
+LOGGER.setLevel(LOG_LEVEL)
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 SESSION = boto3.session.Session(region_name=AWS_REGION)
@@ -24,7 +24,7 @@ def put_ddb_item(table, item):
     try:
         response = table.put_item(Item=item)
     except ClientError as err:
-        logger.error(err)
+        LOGGER.error(err)
 
     return response
 
@@ -60,7 +60,9 @@ def get_args():
         "--src", default="seed-data.json", help="Path to source data (seed-data.json)"
     )
     parser.add_argument(
-        "--table", default="prod-launch-prod-sputnik-api", help="Target DynamoDB table name"
+        "--table",
+        default="prod-launch-prod-sputnik-api",
+        help="Target DynamoDB table name",
     )
 
     return parser.parse_args()
@@ -69,7 +71,7 @@ def get_args():
 def main():
     """Script entry point"""
     args = get_args()
-    table = DDB.Table(args.table)
+    table = DDB.Table(args.table)   # pylint: disable=no-member
 
     with open(args.src) as json_file:
         data = json.load(json_file)
@@ -81,7 +83,7 @@ def main():
 
             item = dict(
                 id=str(uuid.uuid4()),
-                flightNumber=flight_number,
+                flightNumber=int(flight_number),
                 missionName=obj.get("mission_name"),
                 details=obj.get("details"),
                 launchDate=obj.get("launch_date_utc"),
@@ -96,8 +98,8 @@ def main():
 
             # Remove keys with None values
             item = {k: v for k, v in item.items() if v is not None}
-            
-            logger.info(f"Inserting flight {flight_number}")
+
+            LOGGER.info(f"Inserting flight {flight_number}") # pylint: disable=logging-format-interpolation
             _ = put_ddb_item(table, item)
 
 

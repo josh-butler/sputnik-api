@@ -1,15 +1,26 @@
 """SAM app entry point"""
 import json
 import os
+import decimal
 
 import boto3  # pylint: disable=import-error
 from botocore.exceptions import ClientError  # pylint: disable=import-error
+from boto3.dynamodb.conditions import Attr  # pylint: disable=unused-import
 
 from logger import log_info, log_error
 
 SESSION = boto3.session.Session()
 DDB = SESSION.resource("dynamodb")
 DDB_TABLE = DDB.Table(os.getenv("TABLE_NAME"))  # pylint: disable=import-error,no-member
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """Helper to convert a DynamoDB item to JSON"""
+
+    def default(self, o):  # pylint: disable=method-hidden
+        if isinstance(o, decimal.Decimal):
+            return str(o)
+        return super(DecimalEncoder, self).default(o)
 
 
 def cors_headers(origin="*"):
@@ -41,26 +52,24 @@ def error_404():
 
 def ok_response(body=""):
     """Builds an HTTP 200 response"""
-    return dict(statusCode=200, headers=cors_headers(), body=json.dumps(body))
+    return dict(
+        statusCode=200,
+        headers=cors_headers(),
+        body=json.dumps(body, cls=DecimalEncoder),
+    )
 
 
-def get_ddb_item(table, item_id):
-    """Retrieves a single item from a DDB table"""
-    item = None
-    try:
-        response = table.get_item(Key={"id": item_id})
-    except ClientError as error:
-        log_error(error)
-    else:
-        item = response.get("Item")
-    return item
-
-
-def get_ddb_all(table):
+def get_ddb_all(table, filters=None):
     """Retrieves all items in a table"""
     items = None
     try:
-        response = table.scan(AttributesToGet=['id'])
+        if filters:
+            fe = eval(  # pylint: disable=eval-used
+                " & ".join([f"Attr('{k}').eq({v})" for k, v in filters.items()])
+            )
+            response = table.scan(FilterExpression=fe)
+        else:
+            response = table.scan()
     except ClientError as error:
         log_error(error)
     else:
@@ -68,37 +77,30 @@ def get_ddb_all(table):
     return items
 
 
+def get_filters(params):
+    """Prepare query params for DDB query"""
+    query_fields = ["reused", "landSuccess", "withReddit"]
+    filters = dict()
+    for k in params:
+        if k in query_fields and params[k] == "1":
+            filters[k] = True
+
+    return filters if filters else None
+
+
 def lambda_handler(event, _):
     """Users Lambda handler"""
     response = None
     http_method = event.get("httpMethod")
-    # params = event.get("queryStringParameters")
-
-    # filters = params.keys() if params else []
-
-    # params = event.get("pathParameters")
-    # uid = params.get("id") if params else None
-    # queryStringParameters
-    # 'queryStringParameters': {'reddit': '1', 'reused': '1'}
-    # print(event)
-    uid = None
+    params = event.get("queryStringParameters")
+    filters = get_filters(params) if params else None
 
     if http_method == "GET":
-        if uid:
-            log_info(f"GET user {uid}")
-            item = get_ddb_item(DDB_TABLE, uid)
-            if item:
-                print(item)
-                response = ok_response(item)
-            else:
-                response = error_404()
+        log_info(f"GET launches: {filters}")
+        items = get_ddb_all(DDB_TABLE, filters)
+        if items:
+            response = ok_response(items)
         else:
-            log_info("GET all users.")
-            items = get_ddb_all(DDB_TABLE)
-            if items:
-                print(items)
-                response = ok_response(items)
-            else:
-                response = error_404()
+            response = error_404()
 
     return response if response else error_400()
