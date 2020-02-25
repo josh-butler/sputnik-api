@@ -1,16 +1,27 @@
 # Sputnik API
 
-Sample AWS API gateway and automated deployment pipeline.
+Small AWS API gateway and automated deployment pipeline.
+
 
 ## API
 API Gateway with 2 endpoints
 
 * GET ~/dev||prod/launch returns all launches 
-* GET ~/dev||prod/launch?landed=1 returns all launches that have landed successfully
+* GET ~/dev||prod/launch?landSuccess=1 returns all launches that have landed successfully
+
+### Query Parameters
+* landSuccess=1
+* reused=1
+* withReddit=1
 
 and 2 environments/stages
-* https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
-* https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod
+* ~~https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev~~
+* https://rozv4aak55.execute-api.us-east-1.amazonaws.com/prod
+
+### Example Request
+```bash
+curl https://rozv4aak55.execute-api.us-east-1.amazonaws.com/prod/launch?reused=1&landSuccess=1&withReddit=1
+```
 
 
 ### Example GET URL
@@ -57,7 +68,7 @@ aws cloudformation create-stack \
 --stack-name prod-sputnik-api-pipeline \
 --template-body file://pipeline.yaml \
 --parameters ParameterKey=GitHubRepo,ParameterValue=sputnik-api  \
-ParameterKey=GitHubBranch,ParameterValue=prod  \
+ParameterKey=GitHubBranch,ParameterValue=master  \
 ParameterKey=GitHubOwner,ParameterValue=josh-butler  \
 ParameterKey=GitHubToken,ParameterValue=[TOKEN-HERE]  \
 ParameterKey=SamStackName,ParameterValue=prod-sputnik-api  \
