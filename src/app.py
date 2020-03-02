@@ -5,7 +5,7 @@ import decimal
 
 import boto3  # pylint: disable=import-error
 from botocore.exceptions import ClientError  # pylint: disable=import-error
-from boto3.dynamodb.conditions import Attr  # pylint: disable=unused-import
+from boto3.dynamodb.conditions import Attr  # pylint: disable=unused-import,import-error
 
 from logger import log_info, log_error
 
